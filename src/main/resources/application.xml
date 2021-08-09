@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+       http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd">
+    <context:component-scan base-package="com.bo">
+        <context:exclude-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+    </context:component-scan>
+    <!--=========================数据源配置================-->
+    <context:property-placeholder location="classpath:jdbc.properties"></context:property-placeholder>
+    <bean class="com.alibaba.druid.pool.DruidDataSource" id="dataSource">
+        <property name="driverClassName" value="${jdbc.driverClass}"></property>
+        <property name="password" value="${jdbc.password}"></property>
+        <property name="username" value="${jdbc.username}"></property>
+        <property name="url" value="${jdbc.url}"></property>
+    </bean>
+
+    <!--====================与mybatis的配置文件==================-->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="configLocation" value="classpath:mybatis.xml"></property>
+        <property name="dataSource" ref="dataSource"></property>
+        <property name="mapperLocations" value="classpath:mapper/*.xml"></property>
+    </bean>
+    <!--配置mapper映射接口的扫描-->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <!--扫描所有dao接口的实现，将他们放到ioc容器中-->
+        <property name="basePackage" value="com.bo.dao"></property>
+    </bean>
+    <!--配置一个可以执行批量的sqlSession,批量插入用-->
+    <bean id="sqlSession" class="org.mybatis.spring.SqlSessionTemplate">
+        <constructor-arg name="sqlSessionFactory"  ref="sqlSessionFactory"></constructor-arg>
+        <!--batch设置为批量插入-->
+        <constructor-arg name="executorType" value="BATCH"></constructor-arg>
+    </bean>
+
+    <!--============================事物控制的配置=============-->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"></property>
+    </bean>
+
+    <!--配置基于注解的事物，用xml配置事物-->
+    <aop:config>
+        <!--切入点-->
+        <aop:pointcut id="txPoint" expression="execution(* com.bo.service..*(..))"/>
+        <!--事物增强-->
+        <aop:advisor advice-ref="txAdvice" pointcut-ref="txPoint"></aop:advisor>
+    </aop:config>
+    <!--配置事物增强，那些要增强-->
+<tx:advice id="txAdvice" transaction-manager="transactionManager">
+    <tx:attributes>
+        <tx:method name="*"/>
+        <tx:method name="get*" read-only="true"></tx:method>
+    </tx:attributes>
+</tx:advice>
+
+</beans>
